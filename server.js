@@ -181,6 +181,125 @@ app.put("/questoes/:id", async (req, res) => {
   }
 });
 
+// ROTAS DE ITENS
+// ----------------------------------------------------------
+
+// GET /itens -> lista todos os itens
+app.get("/itens", async (req, res) => {
+  console.log("Rota GET /itens solicitada");
+  try {
+    const db = conectarBD();
+    const resultado = await db.query("SELECT * FROM itens");
+    res.json(resultado.rows);
+  } catch (e) {
+    console.error("Erro ao buscar itens:", e);
+    res.status(500).json({
+      erro: "Erro interno do servidor",
+      mensagem: "Não foi possível buscar os itens"
+    });
+  }
+});
+
+// GET /itens/:id -> retorna um item específico
+app.get("/itens/:id", async (req, res) => {
+  console.log("Rota GET /itens/:id solicitada");
+  try {
+    const id = req.params.id;
+    const db = conectarBD();
+    const resultado = await db.query("SELECT * FROM itens WHERE id = $1", [id]);
+    if (resultado.rows.length === 0) {
+      return res.status(404).json({ mensagem: "Item não encontrado" });
+    }
+    res.json(resultado.rows[0]);
+  } catch (e) {
+    console.error("Erro ao buscar item:", e);
+    res.status(500).json({ erro: "Erro interno do servidor" });
+  }
+});
+
+// POST /itens -> cria um novo item
+app.post("/itens", async (req, res) => {
+  console.log("Rota POST /itens solicitada");
+  try {
+    const data = req.body;
+
+    // validação simples
+    if (!data.nome || !data.preco) {
+      return res.status(400).json({
+        erro: "Dados inválidos",
+        mensagem: "Os campos nome e preco são obrigatórios."
+      });
+    }
+
+    const db = conectarBD();
+    const consulta = "INSERT INTO itens (nome, descricao, categoria, preco) VALUES ($1, $2, $3, $4)";
+    const valores = [data.nome, data.descricao, data.categoria, data.preco];
+    await db.query(consulta, valores);
+
+    res.status(201).json({ mensagem: "Item criado com sucesso!" });
+  } catch (e) {
+    console.error("Erro ao criar item:", e);
+    res.status(500).json({ erro: "Erro interno do servidor" });
+  }
+});
+
+// PUT /itens/:id -> atualiza um item existente
+app.put("/itens/:id", async (req, res) => {
+  console.log("Rota PUT /itens solicitada");
+  try {
+    const id = req.params.id;
+    const db = conectarBD();
+
+    // verifica se o item existe
+    let resultado = await db.query("SELECT * FROM itens WHERE id = $1", [id]);
+    if (resultado.rows.length === 0) {
+      return res.status(404).json({ mensagem: "Item não encontrado" });
+    }
+
+    const itemAtual = resultado.rows[0];
+    const data = req.body;
+
+    // mantém o valor antigo caso não seja enviado
+    const nome = data.nome || itemAtual.nome;
+    const descricao = data.descricao || itemAtual.descricao;
+    const categoria = data.categoria || itemAtual.categoria;
+    const preco = data.preco || itemAtual.preco;
+
+    const consulta = `
+      UPDATE itens
+      SET nome = $1, descricao = $2, categoria = $3, preco = $4
+      WHERE id = $5
+    `;
+    await db.query(consulta, [nome, descricao, categoria, preco, id]);
+
+    res.status(200).json({ mensagem: "Item atualizado com sucesso!" });
+  } catch (e) {
+    console.error("Erro ao atualizar item:", e);
+    res.status(500).json({ erro: "Erro interno do servidor" });
+  }
+});
+
+// DELETE /itens/:id -> exclui um item
+app.delete("/itens/:id", async (req, res) => {
+  console.log("Rota DELETE /itens/:id solicitada");
+  try {
+    const id = req.params.id;
+    const db = conectarBD();
+
+    const resultado = await db.query("SELECT * FROM itens WHERE id = $1", [id]);
+    if (resultado.rows.length === 0) {
+      return res.status(404).json({ mensagem: "Item não encontrado" });
+    }
+
+    await db.query("DELETE FROM itens WHERE id = $1", [id]);
+    res.status(200).json({ mensagem: "Item excluído com sucesso!" });
+  } catch (e) {
+    console.error("Erro ao excluir item:", e);
+    res.status(500).json({ erro: "Erro interno do servidor" });
+  }
+});
+
+
 app.listen(port, () => {            // Um socket para "escutar" as requisições
   console.log(`Serviço rodando na porta:  ${port}`);
 });
